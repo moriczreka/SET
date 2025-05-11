@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import math
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from collections import Counter
 
 # Kártyatulajdonságok
 number = [0, 1, 2]
@@ -159,7 +160,7 @@ def create_game_window(card_set):
     ]
     
     window = sg.Window('SET Game', layout, finalize=True, element_justification='center')
-    window.move(300,0) #ablak helyének beállítása
+    window.move(150, 0) #ablak helyének beállítása
     window.force_focus()
     
     # Enter is működjön
@@ -185,8 +186,26 @@ def create_result_window(correct_answer, user_guess):
 
 # Ablak készítése a SET-ek megmutatásához
 def create_sets_window(found_sets):
+    n = len(card_set)
+    rows, cols = 3, math.ceil(n / 3)
+    figc, axes = plt.subplots(rows, cols, figsize=(9, 2 * rows))
+    
+    # Lapok indexeinek meghatározása
+    for i, card in enumerate(card_set):
+        r = i % 3
+        c = i // 3 #egészrész
+        draw_card(axes[r][c], card)
+    
+    # Felesleges kártyahelyek üresen hagyása
+    if n % 3 != 0:
+        for i in range(n % 3, 3):
+            figc.delaxes(axes[i][n // 3])
+    
+    plt.tight_layout()
+    
     if not found_sets:
         layout = [
+            [sg.Canvas(key='-CANVAS-')],
             [sg.Text('No sets found!')],
             [sg.Button('Back')]
         ]
@@ -212,7 +231,7 @@ def create_sets_window(found_sets):
     fig_width = fig.get_figwidth() * fig.dpi
     fig_height = fig.get_figheight() * fig.dpi
     
-    # Create a frame to hold the canvas
+    #Seteket kirajzoló rész
     layout = [
         [sg.Text('Sets Found:', font=('Helvetica', 14))],
         [sg.Column(
@@ -222,14 +241,15 @@ def create_sets_window(found_sets):
             size=(650, 500),  #a kártyákat tartalmazó rész mérete 
             expand_x=True, #automatikusan nagyobb lesz, hogy kitöltse a rendelkezésre álló teret
             expand_y=True
-        )],
+        ), sg.Canvas(key='-CANVAS-')],
         [sg.Button('Back')]
     ]
     
-    window = sg.Window('Sets', layout, finalize=True, element_justification='center')
+    window = sg.Window('Sets', layout, finalize=True, element_justification='left')
     
-    window.move(300,0)
+    window.move(0,0)
     window.force_focus()
+    fig_canvas_agg = draw_figure(window['-CANVAS-'].TKCanvas, figc)
     
     canvas = window['-SETS_CANVAS-'].TKCanvas
     
@@ -304,10 +324,28 @@ while True:
     elif window == game_window:
         #Segítség gomb
         if event == 'Help':
-            helpnumber = game_data['n'] * (game_data['n']-1) * (game_data['n']-2) / 474
-            helpnumber = round(helpnumber, 2)
-            window['-HELP_TEXT-'].update(f"Expected number of sets: {helpnumber}", visible=True)
-        
+            helpexpv = game_data['n'] * (game_data['n']-1) * (game_data['n']-2) / 474
+            helpexpv = round(helpexpv, 2)
+
+            countsnum = Counter(t[0] for t in card_set)
+            helpnum = 1/25*(math.comb(countsnum[0], 3) + math.comb(countsnum[1], 3) + math.comb(countsnum[2], 3)) + 1/27 * countsnum[0] * countsnum[1] * countsnum[2]
+            helpnum = round(helpnum, 2)
+
+            countsshape = Counter(t[1] for t in card_set)
+            helpshape = 1/25*(math.comb(countsshape[0], 3) + math.comb(countsshape[1], 3) + math.comb(countsshape[2], 3)) + 1/27 * countsshape[0] * countsshape[1] * countsshape[2]
+            helpshape = round(helpshape, 2)
+
+            countscol = Counter(t[2] for t in card_set)
+            helpcol = 1/25*(math.comb(countscol[0], 3) + math.comb(countscol[1], 3) + math.comb(countscol[2], 3)) + 1/27 * countscol[0] * countscol[1] * countscol[2]
+            helpcol = round(helpcol, 2)
+
+            countsfill = Counter(t[3] for t in card_set)
+            helpfill = 1/25*(math.comb(countsfill[0], 3) + math.comb(countsfill[1], 3) + math.comb(countsfill[2], 3)) + 1/27 * countsfill[0] * countsfill[1] * countsfill[2]
+            helpfill = round(helpfill, 2)
+
+            
+            window['-HELP_TEXT-'].update(f"Expected number of sets: based on the number of cards: {helpexpv}, the number of shapes per card: {helpnum}, the shapes on the cards: {helpshape}, the color: {helpcol}, and how they are filled {helpfill}", visible=True)
+
         # megoldás megadása gomb
         elif event == 'Submit Guess' or event == '-GUESS-' + '_Enter':
             try:
